@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order of Operations Challenge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2F8; --surface:#FFFFFF; --ink:#0E1A2B; --muted:#4A5870; --line:#C9D3E2;
+  --navy:#00274C; --tile:#00274C; --tile-ink:#FFFFFF; --maize:#FFCB05; --maize-soft:#FFF4C2;
+  --good:#1B7A4A; --good-soft:#DDF3E6; --bad:#B3261E; --bad-soft:#FBE3E1; --slot:#F6F8FC;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#081325; --surface:#11223B; --ink:#E9EEF7; --muted:#A9B6CB; --line:#2A3F60;
+    --navy:#0B2A52; --tile:#2D68C4; --tile-ink:#FFFFFF; --maize:#FFCB05; --maize-soft:#3A3310;
+    --good:#5BD495; --good-soft:#123A27; --bad:#FF8A80; --bad-soft:#3D1716; --slot:#0C1A30;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#081325; --surface:#11223B; --ink:#E9EEF7; --muted:#A9B6CB; --line:#2A3F60;
+  --navy:#0B2A52; --tile:#2D68C4; --tile-ink:#FFFFFF; --maize:#FFCB05; --maize-soft:#3A3310;
+  --good:#5BD495; --good-soft:#123A27; --bad:#FF8A80; --bad-soft:#3D1716; --slot:#0C1A30;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1.0625rem;line-height:1.5}
+button{font:inherit;color:inherit}
+header.top{background:var(--navy);color:#fff;border-bottom:6px solid var(--maize)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 1.25rem}
+header .wrap{padding-top:1.4rem;padding-bottom:1.1rem}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(1.6rem,4vw,2.4rem);line-height:1.1;margin:0;letter-spacing:-.01em}
+h1 .ops{color:var(--maize)}
+.steps{display:flex;gap:.5rem;margin:1.1rem 0 0;padding:0;list-style:none;overflow-x:auto}
+.steps button{display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:.35rem .85rem .35rem .4rem;color:#fff;cursor:pointer;white-space:nowrap;font-size:.95rem}
+.steps .n{display:inline-grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:rgba(255,255,255,.18);font-family:var(--display);font-weight:800}
+.steps button[aria-current="step"]{background:var(--maize);color:#00274C;border-color:var(--maize)}
+.steps button[aria-current="step"] .n{background:#00274C;color:var(--maize)}
+.steps button.done .n{background:var(--good);color:#fff}
+.steps button:disabled{opacity:.5;cursor:not-allowed}
+.steps button:focus-visible,.btn:focus-visible,.tile:focus-visible,.slot:focus-visible,.target:focus-visible,input:focus-visible,.pool:focus-visible{outline:3px solid var(--maize);outline-offset:2px}
+
+main.wrap{padding-top:1.5rem;padding-bottom:3rem}
+.stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.5rem;align-items:start}
+@media (max-width:820px){.stage{grid-template-columns:minmax(0,1fr)}}
+.panel{min-width:0;overflow-wrap:break-word}
+.board{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.4rem 1.2rem 1.6rem}
+.pool{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;max-width:22rem;margin:0 auto;min-height:3.6rem;border-radius:10px;padding:.25rem}
+.pool.hot{background:var(--maize-soft)}
+.cell{width:3.4rem;height:3.4rem;border-radius:8px;border:2px dashed var(--line)}
+.tile{width:3.4rem;height:3.4rem;border-radius:8px;border:0;background:var(--tile);color:var(--tile-ink);font-family:var(--display);font-weight:800;font-size:1.75rem;display:grid;place-items:center;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.tile.selected{outline:4px solid var(--maize);outline-offset:2px;transform:translateY(-2px)}
+.tile.lifting{opacity:.25}
+.ghost{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-50%) scale(1.08);box-shadow:0 10px 24px rgba(0,0,0,.35);cursor:grabbing}
+
+.expr{display:flex;align-items:center;justify-content:safe center;flex-wrap:nowrap;overflow-x:auto;gap:.35rem;margin-top:2rem;padding:1.4rem .5rem 1.1rem;border-top:2px solid var(--line);font-family:var(--display);font-weight:600;font-size:2rem;color:var(--ink)}
+.slot{flex:none;width:3.8rem;height:3.8rem;border-radius:10px;border:2px solid var(--line);background:var(--slot);display:grid;place-items:center;padding:0;cursor:pointer}
+.slot.hot{border-color:var(--maize);background:var(--maize-soft)}
+.slot .tile{width:100%;height:100%;box-shadow:none}
+.op{padding:0 .1rem}
+.paren{font-weight:400;font-size:3.4rem;line-height:1;transform:translateY(-.08em)}
+.pow{display:inline-flex;align-items:flex-start}
+.pow .sup{width:2.6rem;height:2.6rem;margin-top:-1.6rem;margin-left:.15rem}
+.pow .sup .tile{font-size:1.25rem}
+.expr.long{gap:.2rem}
+.expr.long .slot{width:3.2rem;height:3.2rem}
+.expr.long .pow .sup{width:2.3rem;height:2.3rem;margin-top:-1.4rem}
+.pool.six{max-width:12rem}
+@media (max-width:480px){
+  .expr.long{font-size:1.25rem;gap:.1rem}
+  .expr.long .slot{width:2.5rem;height:2.5rem}
+  .expr.long .slot .tile{font-size:1.25rem}
+  .expr.long .pow .sup{width:1.8rem;height:1.8rem;margin-top:-1.1rem}
+  .expr.long .paren{font-size:2.2rem}
+  .tile,.cell{width:2.9rem;height:2.9rem;font-size:1.5rem}
+  .slot{width:3.1rem;height:3.1rem}
+  .pow .sup{width:2.1rem;height:2.1rem;margin-top:-1.3rem}
+  .expr{font-size:1.5rem;gap:.2rem}
+  .paren{font-size:2.6rem}
+}
+
+.panel h2{font-family:var(--display);font-weight:800;font-size:1.6rem;line-height:1.15;margin:0 0 .6rem}
+.panel p{margin:0 0 .8rem;max-width:36rem}
+.prev{background:var(--surface);border-left:5px solid var(--maize);border-radius:6px;padding:.6rem .9rem;margin:0 0 1rem}
+.answer{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-top:1rem}
+.answer label{display:block;font-weight:700;margin-bottom:.4rem}
+.row{display:flex;gap:.6rem}
+input[type=text]{flex:1;min-width:0;font:inherit;font-size:1.3rem;padding:.55rem .75rem;border-radius:8px;border:2px solid var(--line);background:var(--slot);color:var(--ink)}
+.hint{font-size:.9rem;color:var(--muted);margin:.45rem 0 0}
+.btn{border:0;border-radius:8px;padding:.6rem 1.1rem;font-weight:700;cursor:pointer;background:var(--navy);color:#fff}
+:root[data-theme="dark"] .btn{background:var(--tile)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn{background:var(--tile)}}
+.btn.go{background:var(--maize);color:#00274C}
+.btn.quiet{background:transparent;color:var(--muted);text-decoration:underline;padding:.3rem}
+.feedback{margin-top:.9rem;border-radius:8px;padding:.7rem .9rem;font-weight:700;display:none}
+.feedback.show{display:block}
+.feedback.good{background:var(--good-soft);color:var(--good)}
+.feedback.close{background:var(--maize-soft);color:var(--ink)}
+.feedback.bad{background:var(--bad-soft);color:var(--bad)}
+.feedback.info{background:var(--slot);color:var(--ink);font-weight:400}
+.feedback .btn{margin-top:.6rem;display:block}
+.feedback ol.walk{margin:.55rem 0 .5rem 1.3rem;padding:0;font-weight:400;color:var(--ink)}
+.feedback ol.walk li{margin:.25rem 0}
+.feedback .finish{display:block}
+
+.targets{width:100%;border-collapse:collapse;margin-top:.6rem;background:var(--surface);border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.targets td{border-top:1px solid var(--line);padding:0}
+.target{width:100%;display:grid;grid-template-columns:3.2rem 1fr auto;align-items:center;gap:.6rem;text-align:left;background:transparent;border:0;padding:.45rem .7rem;cursor:pointer;min-height:2.6rem}
+.target .v{font-family:var(--display);font-weight:800;font-size:1.2rem;text-align:center}
+.target .e{color:var(--muted)}
+.target[aria-pressed="true"]{background:var(--maize-soft);box-shadow:inset 5px 0 0 var(--maize)}
+.target.found{background:var(--good-soft)}
+.target.found .e{color:var(--good);font-weight:700}
+.target.found[aria-pressed="true"]{box-shadow:inset 5px 0 0 var(--good)}
+.tally{font-weight:700;margin:.2rem 0 0}
+.example{font-family:var(--display);font-weight:600}
+footer{text-align:center;padding:0 1rem 2rem}
+.confirm{max-width:28rem;margin:.6rem auto 0;background:var(--surface);border:2px solid var(--bad);border-radius:12px;padding:1rem}
+.confirm p{margin:0 0 .8rem;font-weight:700}
+.row.center{justify-content:center;flex-wrap:wrap}
+.btn.danger{background:var(--bad);color:#fff}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(.96);opacity:.4}100%{transform:scale(1);opacity:1}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Order of <span class="ops">Operations</span> Challenge</h1>
+    <ol class="steps" id="steps" aria-label="Activities"></ol>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="stage">
+    <section class="board" aria-label="Number tiles and expression">
+      <div class="pool" id="pool" tabindex="-1" aria-label="Number tiles"></div>
+      <div class="expr" id="expr"></div>
+    </section>
+    <section class="panel" id="panel" aria-live="polite"></section>
+  </div>
+</main>
+<footer>
+  <button class="btn quiet" id="reset">Start over from Activity 1</button>
+  <div class="confirm" id="confirm" hidden role="alertdialog" aria-labelledby="confirmText">
+    <p id="confirmText">Start over? This clears your progress on all five activities and locks Activities 2–5 again.</p>
+    <div class="row center">
+      <button type="button" class="btn danger" id="resetYes">Yes, start over</button>
+      <button type="button" class="btn" id="resetNo">Keep my progress</button>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+const SUP = {"1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"};
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
+const frac=(n,d)=>{if(d<0){n=-n;d=-d}const g=gcd(n,d);return {n:n/g,d:d/g}};
+
+/* Expression templates. Each item: a slot index, an operator string, a paren, or a power {base, sup}. */
+const T = {
+  add:{ size:3, parts:[0,"+",1,"·",2],
+        val:s=>frac(s[0]+s[1]*s[2],1),
+        text:s=>`${s[0]} + ${s[1]} · ${s[2]}` },
+  div:{ size:4, parts:[0,"÷",1,"·","(",2,"−",3,")"],
+        val:s=>frac(s[0]*(s[2]-s[3]),s[1]),
+        text:s=>`${s[0]} ÷ ${s[1]} · (${s[2]} − ${s[3]})` },
+  pow:{ size:6, parts:[0,"·",{base:1,sup:2},"−",3,"(",4,"+",5,")"],
+        val:s=>frac(s[0]*Math.pow(s[1],s[2])-s[3]*(s[4]+s[5]),1),
+        text:s=>`${s[0]} · ${s[1]}${SUP[s[2]]} − ${s[3]}(${s[4]} + ${s[5]})` }
+};
+
+/* Greatest possible value, found by checking every arrangement (nothing hard-coded in the page). */
+function greatest(tpl,digits){
+  let best=null;
+  (function rec(chosen,used){
+    if(chosen.length===tpl.size){const v=tpl.val(chosen);if(!best||v.n*best.d>best.n*v.d)best=v;return}
+    for(const d of digits){if(!used.has(d)){used.add(d);chosen.push(d);rec(chosen,used);chosen.pop();used.delete(d)}}
+  })([],new Set());
+  return best;
+}
+
+const D9=[1,2,3,4,5,6,7,8,9], D6=[1,2,3,4,5,6];
+const ACTS=[
+  {id:1,short:"Find the value",tpl:"add",digits:D9,mode:"any",title:"Find the value",
+   prompt:"Drag any three numbers into the empty boxes. Your goal is to create an expression and find its value."},
+  {id:2,short:"Greatest value I",tpl:"add",digits:D9,mode:"max",title:"Greatest value",
+   prompt:"Move the numbers to create an expression with the greatest possible value. Then enter your expression’s value and check it."},
+  {id:3,short:"Greatest value II",tpl:"div",digits:D9,mode:"max",title:"Greatest value",
+   prompt:"Drag any four numbers into the empty boxes. Your goal is to create an expression with the greatest possible value.",
+   hint:"If your value isn’t a whole number, enter it as a fraction (like 7/3) or a decimal."},
+  {id:4,short:"Greatest value III",tpl:"pow",digits:D6,mode:"max",title:"Greatest value",
+   prompt:"Drag all six numbers into the empty boxes. Your goal is to create an expression with the greatest possible value."},
+  {id:5,short:"Make 1 to 10",tpl:"pow",digits:D9,mode:"targets",title:"Make every value from 1 to 10",
+   prompt:"Pick a value from the table, then arrange numbers to build an expression equal to it. When it matches, that row turns green. Make all ten rows green."}
+];
+ACTS.forEach(a=>{ if(a.mode==="max") a.best=greatest(T[a.tpl],a.digits); });
+
+/* ---------- State ---------- */
+const KEY="ooo-challenge-v1";
+function fresh(){
+  const s={unlocked:1,current:1,acts:{},first:null};
+  ACTS.forEach(a=>s.acts[a.id]={slots:Array(T[a.tpl].size).fill(null),solved:false,found:{},target:null,seeded:false,wrong:0});
+  return s;
+}
+let S;
+try{ S=JSON.parse(localStorage.getItem(KEY)) }catch(e){ S=null }
+if(!S||!S.acts||!S.acts[5]) S=fresh();
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){} }
+
+let feedback=null;   // {kind, html}
+let selected=null;   // {digit, from} from: "pool" or slot index
+const act=()=>ACTS[S.current-1];
+const st=()=>S.acts[S.current];
+
+/* ---------- Rendering ---------- */
+const $=id=>document.getElementById(id);
+
+function renderSteps(){
+  $("steps").innerHTML="";
+  ACTS.forEach(a=>{
+    const li=document.createElement("li"), b=document.createElement("button");
+    const done = a.mode==="targets" ? Object.keys(S.acts[5].found).length===10 : S.acts[a.id].solved;
+    b.innerHTML=`<span class="n">${a.id<=S.unlocked?a.id:"🔒"}</span>${a.short}`;
+    if(done) b.classList.add("done");
+    if(a.id===S.current) b.setAttribute("aria-current","step");
+    if(a.id>S.unlocked){ b.disabled=true; b.title="Finish the activity before this one to unlock it."; }
+    b.addEventListener("click",()=>go(a.id));
+    li.appendChild(b); $("steps").appendChild(li);
+  });
+}
+
+function tileEl(d,from){
+  const t=document.createElement("button");
+  t.type="button"; t.className="tile"; t.textContent=d;
+  t.dataset.digit=d; t.dataset.from=from;
+  t.setAttribute("aria-label",`Number ${d}`+(from==="pool"?"":` in box ${+from+1}`));
+  if(selected&&selected.digit===d) t.classList.add("selected");
+  return t;
+}
+
+function renderBoard(){
+  const a=act(), s=st(), used=new Set(s.slots.filter(x=>x!==null));
+  const pool=$("pool"); pool.innerHTML=""; pool.classList.toggle("six",a.digits.length===6);
+  a.digits.forEach(d=>{
+    if(used.has(d)){ const c=document.createElement("div"); c.className="cell"; c.setAttribute("aria-hidden","true"); pool.appendChild(c); }
+    else pool.appendChild(tileEl(d,"pool"));
+  });
+  const ex=$("expr"); ex.innerHTML=""; ex.classList.toggle("long",T[a.tpl].size===6);
+  const mkSlot=(i,cls)=>{
+    const b=document.createElement("div");
+    b.className="slot"+(cls?" "+cls:""); b.dataset.slot=i; b.tabIndex=0; b.setAttribute("role","button");
+    b.setAttribute("aria-label",`Box ${i+1}`+(s.slots[i]===null?", empty":`, holds ${s.slots[i]}`));
+    if(s.slots[i]!==null) b.appendChild(tileEl(s.slots[i],String(i)));
+    return b;
+  };
+  T[a.tpl].parts.forEach(p=>{
+    if(typeof p==="number") ex.appendChild(mkSlot(p));
+    else if(typeof p==="object"){
+      const w=document.createElement("span"); w.className="pow";
+      w.appendChild(mkSlot(p.base)); w.appendChild(mkSlot(p.sup,"sup")); ex.appendChild(w);
+    } else {
+      const o=document.createElement("span");
+      o.className=(p==="("||p===")")?"paren":"op"; o.textContent=p; o.setAttribute("aria-hidden","true");
+      ex.appendChild(o);
+    }
+  });
+}
+
+function renderPanel(){
+  const a=act(), s=st(), P=$("panel");
+  let h=`<h2>${a.title}</h2>`;
+  if(a.id===2 && S.first) h+=`<p class="prev">Your expression from Activity 1 was <strong>${S.first.text}</strong>, with a value of <strong>${S.first.value}</strong>. Can you beat it?</p>`;
+  h+=`<p>${a.prompt}</p>`;
+  if(a.mode==="targets"){
+    const n=Object.keys(s.found).length;
+    h+=`<p>Example: <span class="example">8 · 4¹ − 3(2 + 7) = 5</span></p>`;
+    h+=`<p class="tally" id="tally">${n} of 10 values made</p>`;
+    h+=`<table class="targets"><tbody>`;
+    for(let v=1;v<=10;v++){
+      const f=s.found[v];
+      h+=`<tr><td><button type="button" class="target${f?" found":""}" data-target="${v}" aria-pressed="${s.target===v}">
+          <span class="v">${v}</span><span class="e">${f?f:(s.target===v?"Build this one now":"")}</span><span aria-hidden="true">${f?"✓":""}</span></button></td></tr>`;
+    }
+    h+=`</tbody></table>`;
+    h+=`<div class="answer"><button type="button" class="btn" id="check">Check expression</button>`;
+  } else {
+    h+=`<div class="answer"><label for="val">Value of your expression</label>
+        <div class="row"><input type="text" id="val" inputmode="decimal" autocomplete="off" placeholder="Type a number">
+        <button type="button" class="btn" id="check">Check</button></div>`;
+    if(a.hint) h+=`<p class="hint">${a.hint}</p>`;
+  }
+  h+=`<div class="feedback" id="fb" role="status"></div></div>`;
+  P.innerHTML=h;
+  $("check").addEventListener("click",check);
+  const inp=$("val"); if(inp) inp.addEventListener("keydown",e=>{ if(e.key==="Enter") check(); });
+  P.querySelectorAll(".target").forEach(b=>b.addEventListener("click",()=>{
+    s.target=+b.dataset.target; feedback=null; save(); renderPanel();
+    P.querySelector(`[data-target="${s.target}"]`).focus();
+  }));
+  showFeedback();
+}
+
+function showFeedback(){
+  const fb=$("fb"); if(!fb) return;
+  if(!feedback){ fb.className="feedback"; fb.innerHTML=""; return; }
+  fb.className="feedback show pop "+feedback.kind; fb.innerHTML=feedback.html;
+  const nx=fb.querySelector("[data-next]");
+  if(nx) nx.addEventListener("click",()=>go(+nx.dataset.next));
+}
+
+function render(){ renderSteps(); renderBoard(); renderPanel(); }
+
+function go(id){
+  if(id>S.unlocked) return;
+  S.current=id; selected=null; feedback=null;
+  if(id===2 && !S.acts[2].seeded && S.acts[1].solved){ S.acts[2].slots=S.acts[1].slots.slice(); S.acts[2].seeded=true; }
+  save(); render(); window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ---------- Moving tiles ---------- */
+function place(digit,from,to){
+  const s=st();
+  if(from===to) return;
+  if(to==="pool"){ if(from!=="pool") s.slots[from]=null; }
+  else{
+    const occupant=s.slots[to];
+    s.slots[to]=digit;
+    if(from!=="pool") s.slots[from]=occupant;   // swap boxes
+  }
+  selected=null; feedback=null; save(); renderBoard(); showFeedback();
+}
+const parseFrom=v=>v==="pool"?"pool":+v;
+
+/* Tap / keyboard: select a tile, then choose a box (or the tile area to send it back). */
+document.addEventListener("click",e=>{
+  if(justDragged){ justDragged=false; return; }
+  const tile=e.target.closest(".tile"), slot=e.target.closest(".slot"), pool=e.target.closest("#pool");
+  if(!tile&&!slot&&!pool) return;
+  if(selected){
+    if(slot){ place(selected.digit,selected.from,+slot.dataset.slot); return; }
+    if(tile && tile.dataset.from==="pool"){ selected={digit:+tile.dataset.digit,from:"pool"}; renderBoard(); return; }
+    if(pool){ if(selected.from!=="pool") place(selected.digit,selected.from,"pool"); else { selected=null; renderBoard(); } return; }
+  }
+  if(tile){ const d=+tile.dataset.digit; selected=(selected&&selected.digit===d)?null:{digit:d,from:parseFrom(tile.dataset.from)}; renderBoard();
+    const again=document.querySelector(`.tile[data-digit="${d}"]`); if(again) again.focus(); }
+});
+document.addEventListener("keydown",e=>{
+  const slot=e.target.closest&&e.target.closest(".slot");
+  if(slot && (e.key==="Enter"||e.key===" ") && e.target===slot){ e.preventDefault(); slot.click(); }
+});
+
+/* Drag with mouse, pen, or finger */
+let drag=null, justDragged=false;
+document.addEventListener("pointerdown",e=>{
+  const tile=e.target.closest(".tile"); if(!tile||e.button>0) return;
+  drag={tile,digit:+tile.dataset.digit,from:parseFrom(tile.dataset.from),x:e.clientX,y:e.clientY,ghost:null,hot:null};
+});
+document.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  if(!drag.ghost){
+    if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6) return;
+    const g=drag.tile.cloneNode(true); const r=drag.tile.getBoundingClientRect();
+    g.classList.add("ghost"); g.classList.remove("selected"); g.style.width=r.width+"px"; g.style.height=r.height+"px";
+    document.body.appendChild(g); drag.ghost=g; drag.tile.classList.add("lifting"); selected=null;
+  }
+  e.preventDefault();
+  drag.ghost.style.left=e.clientX+"px"; drag.ghost.style.top=e.clientY+"px";
+  const under=document.elementFromPoint(e.clientX,e.clientY);
+  const hot=under&&(under.closest(".slot")||under.closest("#pool"));
+  if(hot!==drag.hot){ if(drag.hot) drag.hot.classList.remove("hot"); if(hot) hot.classList.add("hot"); drag.hot=hot; }
+},{passive:false});
+function endDrag(e){
+  if(!drag) return;
+  const d=drag; drag=null;
+  if(!d.ghost) return;               // a tap; the click handler takes it
+  justDragged=true; setTimeout(()=>{justDragged=false},0);
+  d.ghost.remove(); if(d.hot) d.hot.classList.remove("hot"); d.tile.classList.remove("lifting");
+  const under=e&&document.elementFromPoint(e.clientX,e.clientY);
+  const slot=under&&under.closest(".slot");
+  if(slot) place(d.digit,d.from,+slot.dataset.slot);
+  else if(d.from!=="pool") place(d.digit,d.from,"pool");   // dropped anywhere else: back to the tiles
+  else renderBoard();
+}
+document.addEventListener("pointerup",endDrag);
+document.addEventListener("pointercancel",()=>endDrag(null));
+
+/* ---------- Checking ---------- */
+function parseAnswer(str){
+  str=String(str).trim().replace(/[−–]/g,"-").replace(/\s+/g,"").replace(/,/g,"");
+  let m=str.match(/^(-?\d+)\/(-?\d+)$/);
+  if(m){ const d=+m[2]; if(d===0) return null; return {exact:frac(+m[1],d)}; }
+  m=str.match(/^-?(\d+\.?\d*|\.\d+)$/);
+  if(m){ const x=parseFloat(str); if(!/\./.test(str)) return {exact:frac(x,1)}; return {approx:x}; }
+  return null;
+}
+function matches(ans,v){
+  if(ans.exact) return ans.exact.n===v.n && ans.exact.d===v.d;
+  return Math.abs(ans.approx - v.n/v.d) < 0.0051;
+}
+const eq=(a,b)=>a.n===b.n&&a.d===b.d;
+
+/* ---------- Tiered help for incorrect evaluations ---------- */
+const num=x=>(x<0?"−":"")+Math.abs(x).toLocaleString("en-US");
+const fmt=v=>v.d===1?num(v.n):`${num(v.n)}/${v.d}`;
+const wrap=v=>v.n<0?`(${fmt(v)})`:fmt(v);
+const pw=(b,c)=>`${b}${SUP[c]}`;
+
+/* Level 2: name the likely order mistake (if their value matches a common one), otherwise state the order for this expression. */
+function orderHint(tpl,s,ans,v){
+  let cands=[], generic="";
+  if(tpl==="add"){
+    const [a,b,c]=s;
+    cands=[[frac((a+b)*c,1),`It looks like you added ${a} + ${b} first. Multiplication comes before addition, so find ${b} · ${c} first, then add ${a}.`]];
+    generic=`In ${a} + ${b} · ${c}, multiplication comes before addition. Find ${b} · ${c} first, then add ${a}.`;
+  } else if(tpl==="div"){
+    const [a,b,c,d]=s;
+    cands=[[frac(a*c-b*d,b),`It looks like you skipped the parentheses. Work out (${c} − ${d}) first, before you divide or multiply.`]];
+    if(c!==d) cands.push([frac(a,b*(c-d)),`It looks like you multiplied ${b} · (${c} − ${d}) before dividing. Division and multiplication have equal rank, so go left to right: find ${a} ÷ ${b} first, then multiply.`]);
+    generic=`Work inside the parentheses (${c} − ${d}) first. Then division and multiplication have equal rank, so go left to right: find ${a} ÷ ${b} first, then multiply.`;
+  } else {
+    const [a,b,c,d,e,f]=s, E=Math.pow(b,c);
+    const expand = c===1 ? `${pw(b,c)} is just ${b}` : `${pw(b,c)} means ${Array(c).fill(b).join(" · ")}`;
+    cands=[
+      [frac(Math.pow(a*b,c)-d*(e+f),1),`It looks like you multiplied ${a} · ${b} before using the exponent. The exponent belongs only to ${b}, so find ${pw(b,c)} first, then multiply by ${a}.`],
+      [frac(a*b*c-d*(e+f),1),`It looks like you treated ${pw(b,c)} as ${b} · ${c}. An exponent means repeated multiplication: ${expand}.`],
+      [frac((a*E-d)*(e+f),1),`It looks like you subtracted before multiplying by (${e} + ${f}). Multiplication comes before subtraction, so find ${d}(${e} + ${f}) first, then subtract.`],
+      [frac(a*E-d*e+f,1),`It looks like (${e} + ${f}) didn’t stay together. Add inside the parentheses first, then multiply that sum by ${d}.`]
+    ];
+    generic=`Work in this order: parentheses (${e} + ${f}) first, then the exponent ${pw(b,c)}, then both multiplications, and subtract last.`;
+  }
+  for(const [cv,msg] of cands) if(!eq(cv,v) && matches(ans,cv)) return msg;
+  return generic;
+}
+
+/* Level 3+: walk through the evaluation with their numbers, leaving the last step for them. */
+function walk(tpl,s){
+  let steps=[];
+  if(tpl==="add"){
+    const [a,b,c]=s;
+    steps=[`Multiply first: ${b} · ${c} = ${num(b*c)}`,`Then add: ${a} + ${num(b*c)} = ?`];
+  } else if(tpl==="div"){
+    const [a,b,c,d]=s, p=frac(c-d,1), q=frac(a,b);
+    steps=[`Parentheses first: ${c} − ${d} = ${fmt(p)}`,`Divide next (left to right): ${a} ÷ ${b} = ${fmt(q)}`,`Then multiply: ${fmt(q)} · ${wrap(p)} = ?`];
+  } else {
+    const [a,b,c,d,e,f]=s, P=e+f, E=Math.pow(b,c);
+    const ex = c>1 && c<=4 ? `${pw(b,c)} = ${Array(c).fill(b).join(" · ")} = ${num(E)}` : `${pw(b,c)} = ${num(E)}`;
+    steps=[`Parentheses first: ${e} + ${f} = ${P}`,`Exponent next: ${ex}`,`Multiply: ${a} · ${num(E)} = ${num(a*E)}, and ${d} · ${P} = ${num(d*P)}`,`Subtract last: ${num(a*E)} − ${num(d*P)} = ?`];
+  }
+  return `<ol class="walk">${steps.map(x=>`<li>${x}</li>`).join("")}</ol>`;
+}
+
+function hintFor(tpl,s,ans,level){
+  if(level<=1) return "Your evaluation is not correct. Work through the order of operations again and recheck your value.";
+  const v=T[tpl].val(s);
+  if(level===2) return `Your evaluation is still not correct. ${orderHint(tpl,s,ans,v)}`;
+  return `Your evaluation is still not correct. Let’s go through it step by step with your numbers:${walk(tpl,s)}<span class="finish">Finish the last step, then enter your value.</span>`;
+}
+
+function check(){
+  const a=act(), s=st(), tpl=T[a.tpl];
+  if(s.slots.some(x=>x===null)){ feedback={kind:"info",html:"Fill every box with a number before checking."}; showFeedback(); return; }
+  const v=tpl.val(s.slots), text=tpl.text(s.slots);
+
+  if(a.mode==="targets"){
+    if(!s.target){ feedback={kind:"info",html:"Choose a value from the table first."}; showFeedback(); return; }
+    if(v.d===1 && v.n===s.target){
+      const dup=s.found[s.target];
+      s.found[s.target]=text;
+      const n=Object.keys(s.found).length;
+      let next=null; for(let k=1;k<=10;k++) if(!s.found[k]){ next=k; break; }
+      s.target=next;
+      feedback = n===10
+        ? {kind:"good",html:"All ten values are green. You made every value from 1 to 10!"}
+        : {kind:"good",html:dup?`${text} also equals ${v.n}. Updated.`:`Yes! ${text} = ${v.n}. ${n} of 10 made.`};
+      save(); renderSteps(); renderPanel();
+    } else {
+      feedback={kind:"bad",html:`That expression doesn’t equal ${s.target}. Rearrange the numbers and try again.`};
+      showFeedback();
+    }
+    return;
+  }
+
+  const raw=$("val").value, ans=parseAnswer(raw);
+  if(!raw.trim()){ feedback={kind:"info",html:"Type the value of your expression, then check."}; showFeedback(); return; }
+  if(!ans){ feedback={kind:"info",html:"Enter a number, like 31, −4, 2.5, or 7/3."}; showFeedback(); return; }
+  if(!matches(ans,v)){
+    s.wrong=(s.wrong||0)+1; save();
+    feedback={kind:"bad",html:hintFor(a.tpl,s.slots,ans,s.wrong)};
+    showFeedback(); return;
+  }
+  s.wrong=0;
+  const nextBtn = a.id<5 ? `<button type="button" class="btn go" data-next="${a.id+1}">Go to Activity ${a.id+1}</button>` : "";
+  if(a.mode==="any"){
+    s.solved=true; S.first={text, value: v.n};
+    S.unlocked=Math.max(S.unlocked,2);
+    feedback={kind:"good",html:`Correct! ${text} = ${v.n}. Activity 2 is unlocked.${nextBtn}`};
+  } else if(eq(v,a.best)){
+    s.solved=true; S.unlocked=Math.max(S.unlocked,a.id+1);
+    feedback={kind:"good",html:`Correct, and that’s the greatest possible value! Activity ${a.id+1} is unlocked.${nextBtn}`};
+  } else {
+    feedback={kind:"close",html:"Your evaluation is correct! But you can still make a greater value. Keep rearranging."};
+  }
+  save(); renderSteps(); showFeedback();
+}
+
+$("reset").addEventListener("click",()=>{
+  $("reset").hidden=true; $("confirm").hidden=false; $("resetNo").focus();
+});
+$("resetNo").addEventListener("click",()=>{
+  $("confirm").hidden=true; $("reset").hidden=false; $("reset").focus();
+});
+$("resetYes").addEventListener("click",()=>{
+  S=fresh(); feedback=null; selected=null; save(); render();
+  $("confirm").hidden=true; $("reset").hidden=false;
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+if(S.current>S.unlocked) S.current=S.unlocked;
+render();
+})();
+</script>
+</body>
+</html>
